@@ -1,0 +1,12 @@
+jobs:
+  test:
+    steps:
+      - name: Start container
+        run: docker run -d --rm --name hello-world crccheck/hello-world
+      - name: Wait for container
+        uses: stringbean/docker-healthcheck-action@v1
+        with:
+          container: hello-world
+          wait-time: 50
+          require-status: running
+          require-healthy: true
