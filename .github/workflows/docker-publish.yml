@@ -91,3 +91,16 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: cosign sign ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
+        
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start container
+        run: docker run -d --rm --name hello-world ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
+      - name: Wait for container
+        uses: stringbean/docker-healthcheck-action@v1
+        with:
+          container: hello-world
+          wait-time: 50
+          require-status: running
+          require-healthy: true
