@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Start container
-        run: docker run -d --rm --name hello-world crccheck/hello-world
+        run: docker run -d --rm --name hello-world ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
       - name: Wait for container
         uses: stringbean/docker-healthcheck-action@v1
         with:
