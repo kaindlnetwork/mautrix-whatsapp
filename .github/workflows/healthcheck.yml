@@ -11,9 +11,10 @@ on:
 
 permissions:
   contents: read
-
+  
 jobs:
   test:
+    runs-on: ubuntu-latest
     steps:
       - name: Start container
         run: docker run -d --rm --name hello-world crccheck/hello-world
