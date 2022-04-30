@@ -96,11 +96,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Start container
-        run: docker run -d --rm --name hello-world ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
+        run: docker run -d --rm --name container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
       - name: Wait for container
         uses: stringbean/docker-healthcheck-action@v1
         with:
-          container: hello-world
-          wait-time: 50
+          container: container
+          wait-time: 60
           require-status: running
           require-healthy: true
