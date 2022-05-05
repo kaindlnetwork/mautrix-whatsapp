@@ -7,7 +7,7 @@ HEALTHCHECK --interval=30s --timeout=3s \
 
 # Get latest Security Updates
 # --no-cache does produce an error when you try to later delete packages
-RUN apk -U upgrade
+RUN apk -U upgrade && \
 
 # Remove not needed packages to make it distroless
 # iputils = ping command and co
@@ -17,12 +17,12 @@ RUN apk -U upgrade
 # Curl is needed for healthcheck and is a dependency from the application!
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
 
-RUN apk del iputils apk-tools alpine-keys libc-utils wget bash
+apk del iputils apk-tools alpine-keys libc-utils wget bash && \
 
 # Remove apk-tools entirely and every related files
-RUN rm -rf /var/cache/apk /lib/apk /etc/apk
+rm -rf /var/cache/apk /lib/apk /etc/apk && \
 # Remove any folders that are not needed to further shrink down image size and make the image simplified 
-RUN rm -rf /home /srv /media /root
+rm -rf /home /srv /media /root && \
 # Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
-RUN rm /sbin/reboot 
+rm /sbin/reboot
 #/sbin/poweroff /sbin/arp /sbin/arp /sbin/fdisk /sbin/ifconfig
