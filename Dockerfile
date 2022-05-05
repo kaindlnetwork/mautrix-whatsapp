@@ -21,3 +21,7 @@ RUN apk del iputils apk-tools alpine-keys libc-utils wget bash
 
 # Remove apk-tools entirely and every related files
 RUN rm -rf /var/cache/apk /lib/apk /etc/apk
+# Remove any folders that are not needed to further shrink down image size and make the image simplified 
+RUN rm -rf /home /srv /media /root
+# Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
+RUN rm /sbin/reboot /sbin/poweroff /sbin/arp /sbin/arp /sbin/fdisk /sbin/ifconfig
