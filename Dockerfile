@@ -16,7 +16,7 @@ RUN apk -U --no-cache upgrade
 # Curl is needed for healthcheck and is a dependency from the application!
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
 
-RUN apk del iputils apk-tools alpine-keys libc-utils wget
+RUN apk del iputils apk-tools alpine-keys libc-utils
 
 # Remove apk-tools entirely and every related files
 RUN rm -rf /var/cache/apk /lib/apk /etc/apk
