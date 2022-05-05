@@ -9,5 +9,8 @@ HEALTHCHECK --interval=30s --timeout=3s \
 RUN apk -U upgrade
 
 # Remove not needed packages to make it distroless
+# iputils = ping command and co
+# apk-tools alpine-tools alpine-keys libc-utils -> remove apk command
+# Nobudy should be able to install software inside an image!!!
 
-RUN apk del iputils
+RUN apk del iputils apk-tools alpine-keys libc-utils
