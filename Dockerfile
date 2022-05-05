@@ -1,6 +1,8 @@
 FROM dock.mau.dev/mautrix/whatsapp
 
 MAINTAINER Fabian Kaindl <github-docker@fabiankaindl.de>
+LABEL org.opencontainers.image.description This is the mautrix-whatapp Container Image provided by Kaindl Network with added Healthcheck and higher security
+
 # Add Healthcheck into the Image
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD code_http=$(curl -sI -o /dev/null -w %{http_code} http://localhost:80); if [ $code_http != 404 ];then exit 1;else exit 0; fi
@@ -24,5 +26,5 @@ rm -rf /var/cache/apk /lib/apk /etc/apk && \
 # Remove any folders that are not needed to further shrink down image size and make the image simplified 
 rm -rf /home /srv /media /root && \
 # Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
-rm /sbin/reboot
-#/sbin/poweroff /sbin/arp /sbin/arp /sbin/fdisk /sbin/ifconfig
+rm /sbin/reboot /sbin/poweroff
+#/sbin/arp /sbin/arp /sbin/fdisk /sbin/ifconfig
