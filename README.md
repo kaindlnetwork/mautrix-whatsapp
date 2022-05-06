@@ -17,11 +17,17 @@ The [Kaindl Network](https://kaindlglobalnetwork.de) team brings you another con
 
 #### Docker CLI
 ```bash
-docker run -d --restart=always
+docker run -d --restart=unless-failed -v ./data:/data ghcr.io/kgncloud/mautrix-whatsapp:main
 ```
 #### Docker-Compose
 
+### Build the Image locally
 
+```bash
+git clone https://github.com/kgncloud/mautrix-whatsapp/
+cd mautrix-whatsapp
+docker build Dockerfile
+```
 
 ## Version Tags
 
@@ -31,10 +37,24 @@ This image provides various versions that are available via tags. `main` tag usu
 | :----: | --- |
 | main | Latest Release Version of this Container |
 
+## Volumes
 
+| Volumes | Description |
+| :----: | --- |
+| data | Here are the Registration Files, Bride Configuration Files (and SQLite File if configured) |
 
-## Healthcheck
+## 🩺 Healthcheck
 
 This image has already a healtcheck included :D
+
+## System Requirements
+
+This Image was test for the use of one person
+
+| Ressources | Description |
+| :----: | --- |
+| CPU | Low usage maximum 2 Threads needed |
+| RAM | 1GB                                |
+| Disk| No prediction possible, depends on user|
 
 docker pull ghcr.io/kgncloud/mautrix-whatsapp:main
