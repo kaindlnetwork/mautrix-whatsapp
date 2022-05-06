@@ -67,6 +67,31 @@ This Image was test for the use of one person
 | RAM | 1GB                                |
 | Disk| No prediction possible, depends on user|
 
+## Enviromental Variables
+The Deveolper of the software generates a Configuration and a Registration File. We want to make your setup even easier by giving you the choise to input the configuration via Enviromental Variables. This would also allow an easier launch on Docker Swarm withut the need to expose your Filesystem.
+
+| Variable | Description| Required Variable? | Standard Variable |
+| :----: | --- | --- | --- |
+| homeserver_adress | The address that this appservice can use to connect to the homeserver. | yes | https://example.com
+| homeserver_domain | The domain of the homeserver (for MXIDs, etc).                         | yes | example.com
+| asmux             | Is the homeserver actually mautrix-asmux?                              | no  | false
+| status_endpoint   | The URL to push real-time bridge status to. If set, the bridge will make POST requests to this URL whenever a user's whatsapp connection state changes. The bridge will use the appservice as_token to authorize requests. | no | null
+| message_send_checkpoint_endpoint | Endpoint for reporting per-message status. | no | null
+| async_media | Does the homeserver support https://github.com/matrix-org/matrix-spec-proposals/pull/2246? | no | false
+| bridge_adress | The address that the homeserver can use to connect to this appservice. | yes | http://localhost:80
+| bridge_hostname | The hostname and port where this appservice should listen. | yes | 0.0.0.0
+| bridge_port | The hostname and port where this appservice should listen.     | yes | 80
+| database_type | The database type. "sqlite3" and "postgres" are supported.   | yes | sqlite3
+| database_uri | | yes | mautrix-whatsapp.db
+| database_max_open_conns | Maximum number of connections. Mostly relevant for Postgres. | no | 20
+| database_max_idle_conns | Maximum number of connections. Mostly relevant for Postgres. | no | 2
+| database_max_conn_idle_time | Maximum connection idle time and lifetime before they're closed. Disabled if null. | no | null
+| database_max_conn_lifetime | Maximum connection idle time and lifetime before they're closed. Disabled if null. | no | null
+
+
+
+
+
 ## Licence
 
 Our Images are always having the Unlicence if possible. The Developer of this Image did use the GNU Affero General Public License v3.0 . This Licence gives us the requirement to passthrough the same Licence to be compliant.
