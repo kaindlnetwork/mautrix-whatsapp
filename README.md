@@ -29,6 +29,16 @@ cd mautrix-whatsapp
 docker build Dockerfile
 ```
 
+## What is needed to launch this Container
+
+- Matrix Server with access to register bots
+- Whatsapp Account
+- Server(Linux preferred) to launch this Container 
+
+## How does this Container work
+
+
+
 ## Version Tags
 
 This image provides various versions that are available via tags. `main` tag usually provides the latest stable version. Others are considered under development and caution must be exercised when using them.
@@ -56,5 +66,30 @@ This Image was test for the use of one person
 | CPU | Low usage maximum 2 Threads needed |
 | RAM | 1GB                                |
 | Disk| No prediction possible, depends on user|
+
+## Licence
+
+Our Images are always having the Unlicence if possible. The Developer of this Image did use the GNU Affero General Public License v3.0 . This Licence gives us the requirement to passthrough the same Licence to be compliant.
+
+### Permissions
+
+- Commercial use
+- Modification
+- Distribution
+- Patent use
+- Private use
+
+### Limitations
+
+- Liability
+- Warranty
+
+### Conditions
+
+- License and copyright notice
+- State changes
+- Disclose source
+- Network use is distribution
+- Same license
 
 docker pull ghcr.io/kgncloud/mautrix-whatsapp:main
