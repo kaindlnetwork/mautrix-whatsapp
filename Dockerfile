@@ -1,7 +1,11 @@
 FROM dock.mau.dev/mautrix/whatsapp
 
 LABEL org.opencontainers.image.description This is the mautrix-whatapp Container Image provided by Kaindl Network with added Healthcheck and higher security
-LABEL org.opencontainers.image.authors Fabian Kaindl | Kaindl Network | container@kaindlnetwork.de
+LABEL org.opencontainers.image.authors Fabian Kaindl container@kaindlnetwork.de
+LABEL org.opencontainers.image.source	https://github.com/kgncloud/mautrix-whatsapp/
+LABEL org.opencontainers.image.documentation https://github.com/kgncloud/mautrix-whatsapp/
+LABEL org.opencontainers.image.vendor Kaindl Network
+#LABEL org.opencontainers.image.licenses	
 # Add Healthcheck into the Image
 # Maximum Retries are 5 times according to  CIS Docker Benchmark 1.4.0 aka Best Practices
 HEALTHCHECK --interval=30s --timeout=3s --retries=5 --start-period=10s \
