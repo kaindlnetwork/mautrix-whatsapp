@@ -1,4 +1,4 @@
-FROM dock.mau.dev/mautrix/whatsapp
+FROM dock.mau.dev/mautrix/whatsapp as build
 
 LABEL org.opencontainers.image.description This is the mautrix-whatapp Container Image provided by Kaindl Network with added Healthcheck and higher security
 LABEL org.opencontainers.image.authors Fabian Kaindl container@kaindlnetwork.de
@@ -38,3 +38,5 @@ rm -rf /var/cache/apk /lib/apk /etc/apk && \
 rm -rf /home /srv /media /root && \
 # Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
 rm /sbin/reboot /sbin/poweroff /sbin/arp /sbin/fdisk /sbin/ifconfig
+
+FROM lsiobase/alpine:edge
