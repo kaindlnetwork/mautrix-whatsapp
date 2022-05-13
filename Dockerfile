@@ -36,4 +36,4 @@ rm -rf /home /srv /media /root && \
 # Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
 rm /sbin/reboot /sbin/poweroff /sbin/arp /sbin/fdisk /sbin/ifconfig
 
-FROM lsiobase/alpine
+FROM lsiobase/alpine:latest
