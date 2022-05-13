@@ -1,5 +1,25 @@
 [![kaindlglobalnetwork.de](https://raw.githubusercontent.com/kgncloud/docker-template/main/KAINDL_LogoDesign_B_orange_rgb.png)](https://kaindlglobalnetwork.de)
 
+# Table of Content
+
+- [mautrix-whatsapp](#mautrix-whatsapp)
+  * [🔧 How to Install](#---how-to-install)
+    + [🐳 Docker](#---docker)
+      - [Docker CLI](#docker-cli)
+      - [Docker-Compose](#docker-compose)
+    + [Build the Image locally](#build-the-image-locally)
+  * [What is needed to launch this Container](#what-is-needed-to-launch-this-container)
+  * [How does this Container work](#how-does-this-container-work)
+  * [Version Tags](#version-tags)
+  * [Volumes](#volumes)
+  * [🩺 Healthcheck](#---healthcheck)
+  * [System Requirements](#system-requirements)
+  * [Enviromental Variables](#enviromental-variables)
+  * [Licence](#licence)
+    + [Permissions](#permissions)
+    + [Limitations](#limitations)
+    + [Conditions](#conditions)
+
 # mautrix-whatsapp
 
 The [Kaindl Network](https://kaindlglobalnetwork.de) team brings you another container release featuring:
