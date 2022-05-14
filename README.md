@@ -122,7 +122,14 @@ The Deveolper of the software generates a Configuration and a Registration File.
 | whatsapp_os_name | Device name that's shown in the "WhatsApp Web" section in the mobile app. | no | Mautrix-WhatsApp bridge
 | whatsapp_browser_name | Browser name that determines the logo shown in the mobile app. Must be "unknown" for a generic icon or a valid browser name if you want a specific icon. List of valid browser names: https://github.com/tulir/whatsmeow/blob/8b34d886d543b72e5f4699cf5b2797f68d598f78/binary/proto/def.proto#L38-L51 | no | unknown
 | whatsapp_debug_decode_before_send | Decode outgoing binary XML payloads to try to make sure they're valid before sending to WhatsApp. | no | false
-| 
+| bridge_username_template | Localpart template of MXIDs for WhatsApp users. {{.}} is replaced with the phone number of the WhatsApp user. | no | whatsapp_{{.}}
+| bridge_displayname_template | Displayname template for WhatsApp users. | no | {{if .PushName}}{{.PushName}}{{else if .BusinessName}}{{.BusinessName}}{{else}}{{.JID}}{{end}} (WA)
+| bridge_personal_filtering_spaces | Should the bridge create a space for each logged-in user and add bridged rooms to it? Users who logged in before turning this on should run `!wa sync space` to create and fill the space for the first time. | no | flase
+| bridge_delivery_receipts | Should the bridge send a read receipt from the bridge bot when a message has been sent to WhatsApp? | no |  false
+| bridge_call_start_notices | Should incoming calls send a message to the Matrix room? | no | true
+| bridge_identity_change_notices | Should another user's cryptographic identity changing send a message to Matrix? | no | false
+| bridge_identity_change_notices | Should another user's cryptographic identity changing send a message to Matrix?| no | 128
+
 
 ## Licence
 
