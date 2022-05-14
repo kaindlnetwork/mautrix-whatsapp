@@ -1,4 +1,4 @@
-FROM dock.mau.dev/mautrix/whatsapp
+FROM ghcr.io/kgncloud/whatsapp:master
 
 LABEL org.opencontainers.image.description This is the mautrix-whatapp Container Image provided by Kaindl Network with added Healthcheck and higher security
 LABEL org.opencontainers.image.authors Fabian Kaindl container@kaindlnetwork.de
