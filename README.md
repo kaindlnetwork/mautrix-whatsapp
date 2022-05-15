@@ -57,7 +57,7 @@ docker build Dockerfile
 
 ## How does this Container work
 
-
+Sometimes we totally disagree with developers that just make Software that is not focussed to be usuable in a longterm production enviroment. Our goal is to patch as much as possible to make your life as an (home-)admin easier.
 
 ## Version Tags
 
