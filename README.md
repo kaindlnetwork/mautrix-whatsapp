@@ -1,4 +1,5 @@
 [![kaindlglobalnetwork.de](https://raw.githubusercontent.com/kgncloud/docker-template/main/KAINDL_LogoDesign_B_orange_rgb.png)](https://kaindlglobalnetwork.de)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkgncloud%2Fmautrix-whatsapp.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkgncloud%2Fmautrix-whatsapp?ref=badge_shield)
 
 # Table of Content
 
@@ -19,6 +20,9 @@
     + [Permissions](#permissions)
     + [Limitations](#limitations)
     + [Conditions](#conditions)
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkgncloud%2Fmautrix-whatsapp.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkgncloud%2Fmautrix-whatsapp?ref=badge_large)
 
 # mautrix-whatsapp
 
