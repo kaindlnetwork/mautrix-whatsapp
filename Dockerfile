@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.vendor Kaindl Network
 # Add Healthcheck into the Image
 # Maximum Retries are 5 times according to  CIS Docker Benchmark 1.4.0 aka Best Practices
 HEALTHCHECK --interval=30s --timeout=3s --retries=5 --start-period=10s \
-  CMD /healthcheck.py
+  CMD python3 /healthcheck.py
 
 # We modified the Image to make it compliant with HTTP Standard Port
 EXPOSE 80
@@ -31,6 +31,8 @@ RUN apk -U upgrade && \
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
 
 apk add python3 && \
+
+pip3 install requests && \
 
 apk del iputils apk-tools alpine-keys libc-utils wget bash && \
 # Remove apk-tools entirely and every related files
