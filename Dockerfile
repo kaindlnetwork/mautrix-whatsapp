@@ -31,7 +31,7 @@ RUN apk -U upgrade && \
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
 
 apk del iputils apk-tools alpine-keys libc-utils wget bash && \
-
+apk add python3 && \
 # Remove apk-tools entirely and every related files
 rm -rf /var/cache/apk /lib/apk /etc/apk && \
 # Remove any folders that are not needed to further shrink down image size and make the image simplified 
