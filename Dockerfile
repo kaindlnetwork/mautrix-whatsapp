@@ -32,6 +32,8 @@ RUN apk -U upgrade && \
 
 apk add python3 && \
 
+python3 -m ensurepip --upgrade && \
+
 pip3 install requests && \
 
 apk del iputils apk-tools alpine-keys libc-utils wget bash && \
