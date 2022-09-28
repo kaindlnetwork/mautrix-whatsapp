@@ -19,6 +19,7 @@ COPY /root /
 
 
 # Get latest Security Updates
+# This is usually not recommended, because it introduces errors to reproduce an image from the source parts but on the other hand does prevent that a part of the supply chain does not get updated fast enough
 # --no-cache does produce an error when you try to later delete packages
 RUN apk -U upgrade && \
 
