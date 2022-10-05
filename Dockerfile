@@ -31,7 +31,7 @@ RUN apk -U upgrade && \
 # Curl is needed for healthcheck and is a dependency from the application!
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
 
-apk add python3 && \
+apk add python3 tzdata && \
 
 python3 -m ensurepip --upgrade && \
 
