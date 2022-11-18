@@ -34,6 +34,7 @@ The [Kaindl Network](https://kaindlglobalnetwork.de) team brings you another con
 * We track the upstream source changes and publishes fast new versions of this image.
 * Bringing you Linuxserver.io Image Quality
 * Using Alpine Base Image
+* Installing a Container Firewall to make it PCI DSS Compliant
 
 ## 🔧 How to Install
 
