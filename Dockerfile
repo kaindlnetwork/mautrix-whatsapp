@@ -30,8 +30,9 @@ RUN apk -U upgrade && \
 # bash = We dont need a shell inside a production container
 # Curl is needed for healthcheck and is a dependency from the application!
 # Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
+# ufw will be used as an internal firewall to ensure no unessesary ports can be used by default
 
-apk add python3 tzdata=2022f-r1 && \
+apk add python3 ufw=0.36.1-r2 tzdata=2022f-r1 && \
 
 python3 -m ensurepip --upgrade && \
 
