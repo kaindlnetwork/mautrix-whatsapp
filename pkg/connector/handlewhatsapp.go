@@ -92,10 +92,16 @@ func (wa *WhatsAppClient) handleWAEvent(rawEvt any) (success bool) {
 		success = wa.handleWAUndecryptableMessage(ctx, evt)
 
 	case *events.CallOffer:
-		success = wa.handleWACallStart(ctx, evt.GroupJID, evt.CallCreator, evt.CallCreatorAlt, evt.CallID, "", evt.Timestamp)
+		success = wa.handleWACallOffer(ctx, evt)
 	case *events.CallOfferNotice:
-		success = wa.handleWACallStart(ctx, evt.GroupJID, evt.CallCreator, evt.CallCreatorAlt, evt.CallID, evt.Type, evt.Timestamp)
-	case *events.CallTerminate, *events.CallRelayLatency, *events.CallAccept, *events.UnknownCallEvent:
+		success = wa.handleWACallOfferNotice(ctx, evt)
+	case *events.CallAccept:
+		success = wa.handleWACallAccept(ctx, evt.BasicCallMeta)
+	case *events.CallReject:
+		success = wa.handleWACallReject(ctx, evt.BasicCallMeta)
+	case *events.CallTerminate:
+		success = wa.handleWACallTerminate(ctx, evt)
+	case *events.CallRelayLatency, *events.CallPreAccept, *events.CallTransport, *events.UnknownCallEvent:
 		// ignore
 	case *events.IdentityChange:
 		wa.handleWAIdentityChange(ctx, evt)
@@ -576,63 +582,6 @@ func (wa *WhatsAppClient) handleWALogout(ctx context.Context, reason events.Conn
 		StateEvent: status.StateBadCredentials,
 		Error:      errorCode,
 	})
-}
-
-const callEventMaxAge = 15 * time.Minute
-
-func (wa *WhatsAppClient) handleWACallStart(ctx context.Context, group, sender, senderAlt types.JID, id, callType string, ts time.Time) bool {
-	if !wa.Main.Config.CallStartNotices || time.Since(ts) > callEventMaxAge {
-		return true
-	}
-	if sender.Server == types.DefaultUserServer && senderAlt.IsEmpty() {
-		senderAlt, _ = wa.GetStore().LIDs.GetLIDForPN(ctx, sender)
-	}
-	if sender.Server == types.DefaultUserServer && senderAlt.Server == types.HiddenUserServer {
-		wa.UserLogin.Log.Debug().
-			Stringer("lid", senderAlt).
-			Stringer("pn", sender).
-			Str("call_id", id).
-			Msg("Forced phone number caller to LID in incoming call")
-		sender, senderAlt = senderAlt, sender
-	}
-	chat := group
-	if chat.IsEmpty() {
-		chat = sender
-	}
-	return wa.UserLogin.QueueRemoteEvent(&simplevent.Message[string]{
-		EventMeta: simplevent.EventMeta{
-			Type:         bridgev2.RemoteEventMessage,
-			LogContext:   nil,
-			PortalKey:    wa.makeWAPortalKey(chat),
-			Sender:       wa.makeEventSender(ctx, sender),
-			CreatePortal: true,
-			Timestamp:    ts,
-			StreamOrder:  ts.Unix(),
-		},
-		Data:               callType,
-		ID:                 waid.MakeFakeMessageID(chat, sender, "call-"+id),
-		ConvertMessageFunc: convertCallStart,
-	}).Success
-}
-
-func convertCallStart(ctx context.Context, portal *bridgev2.Portal, intent bridgev2.MatrixAPI, callType string) (*bridgev2.ConvertedMessage, error) {
-	text := "Incoming call. Use the WhatsApp app to answer."
-	if callType != "" {
-		text = fmt.Sprintf("Incoming %s call. Use the WhatsApp app to answer.", callType)
-	}
-	return &bridgev2.ConvertedMessage{
-		Parts: []*bridgev2.ConvertedMessagePart{{
-			Type: event.EventMessage,
-			Content: &event.MessageEventContent{
-				MsgType: event.MsgText,
-				Body:    text,
-				BeeperActionMessage: &event.BeeperActionMessage{
-					Type:     event.BeeperActionMessageCall,
-					CallType: event.BeeperActionMessageCallType(callType),
-				},
-			},
-		}},
-	}, nil
 }
 
 func (wa *WhatsAppClient) handleWAIdentityChange(ctx context.Context, evt *events.IdentityChange) {

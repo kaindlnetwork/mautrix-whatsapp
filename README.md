@@ -7,7 +7,7 @@ A Matrix-WhatsApp puppeting bridge based on [whatsmeow](https://github.com/tulir
 This repository is a fork of [mautrix/whatsapp](https://github.com/mautrix/whatsapp).
 It carries the full upstream source and history plus the following additions:
 
-* **Call bridging** (see below) – incoming WhatsApp calls show up in the Matrix room, the notice is
+* **Call bridging** – incoming WhatsApp calls show up in the Matrix room, the notice is
   updated live (answered on another device, missed, declined, ended with duration) and a
   ringing call can be declined from Matrix with `!wa decline-call`.
   Audio/video bridging is planned, see [docs/calls.md](docs/calls.md) for status and design.

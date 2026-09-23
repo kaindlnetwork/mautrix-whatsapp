@@ -38,6 +38,7 @@ import (
 
 var (
 	HelpSectionInvites = commands.HelpSection{Name: "Group invites", Order: 25}
+	HelpSectionCalls   = commands.HelpSection{Name: "Calls", Order: 26}
 )
 
 var cmdAccept = &commands.FullHandler{
@@ -317,5 +318,40 @@ func fnJoin(ce *commands.Event) {
 		ce.Reply("Successfully followed channel `%s`, the portal should be created momentarily", info.ID)
 	} else {
 		ce.Reply("That doesn't look like a WhatsApp invite link")
+	}
+}
+
+var cmdDeclineCall = &commands.FullHandler{
+	Func:    fnDeclineCall,
+	Name:    "decline-call",
+	Aliases: []string{"reject-call"},
+	Help: commands.HelpMeta{
+		Section:     HelpSectionCalls,
+		Description: "Decline the incoming WhatsApp call(s) that are currently ringing in this chat.",
+	},
+	RequiresLogin:  true,
+	RequiresPortal: true,
+}
+
+func fnDeclineCall(ce *commands.Event) {
+	login := ce.Bridge.GetCachedUserLoginByID(ce.Portal.Receiver)
+	if login == nil {
+		login = ce.User.GetDefaultLogin()
+	}
+	if login == nil {
+		ce.Reply("Login not found")
+		return
+	} else if !login.Client.IsLoggedIn() {
+		ce.Reply("Not logged in")
+		return
+	}
+	declined, err := login.Client.(*WhatsAppClient).DeclineCallsInPortal(ce.Ctx, ce.Portal.PortalKey)
+	if err != nil {
+		ce.Log.Err(err).Msg("Failed to decline WhatsApp call")
+		ce.Reply("Failed to decline call: %v", err)
+	} else if declined == 0 {
+		ce.Reply("There is no ringing call in this chat.")
+	} else {
+		ce.React("✅")
 	}
 }

@@ -13,6 +13,8 @@
   * [x] Presence
   * [x] Typing notifications
   * [x] Read receipts
+  * [x] Declining incoming calls (`decline-call` command)
+  * [ ] Starting calls
   * [ ] Power level
   * [x] Membership actions
     * [x] Invite
@@ -43,6 +45,10 @@
   * [x] Reactions
   * [x] Avatars
   * [ ] Presence
+  * [x] Calls (see [docs/calls.md](docs/calls.md))
+    * [x] Incoming call notices (voice/video/group)
+    * [x] Call state updates (answered elsewhere, missed, declined, ended with duration)
+    * [ ] Audio/video bridging
   * [x] Typing notifications
   * [x] Read receipts
   * [x] Admin/superadmin status

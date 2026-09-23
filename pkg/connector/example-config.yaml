@@ -21,6 +21,8 @@ proxy_only_login: false
 displayname_template: '{{or .BusinessName .PushName .Phone .RedactedPhone "Unknown user"}} (WA)'
 
 # Should incoming calls send a message to the Matrix room?
+# The notice is edited when the call is answered on another device, missed, declined or ended,
+# and ringing calls can be declined from Matrix with the `decline-call` command.
 call_start_notices: true
 # Should another user's cryptographic identity changing send a message to Matrix?
 identity_change_notices: false
