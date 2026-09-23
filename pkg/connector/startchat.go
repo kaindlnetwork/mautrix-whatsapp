@@ -1,0 +1,407 @@
+// mautrix-whatsapp - A Matrix-WhatsApp puppeting bridge.
+// Copyright (C) 2024 Tulir Asokan
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package connector
+
+import (
+	"context"
+	"crypto/sha256"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/rs/zerolog"
+	"go.mau.fi/util/exmaps"
+	"go.mau.fi/util/exsync"
+	"go.mau.fi/util/ptr"
+	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/types"
+	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/bridgev2"
+	"maunium.net/go/mautrix/bridgev2/database"
+	"maunium.net/go/mautrix/bridgev2/networkid"
+	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
+
+	"go.mau.fi/mautrix-whatsapp/pkg/msgconv"
+	"go.mau.fi/mautrix-whatsapp/pkg/waid"
+)
+
+var (
+	_ bridgev2.IdentifierResolvingNetworkAPI = (*WhatsAppClient)(nil)
+	_ bridgev2.ContactListingNetworkAPI      = (*WhatsAppClient)(nil)
+	_ bridgev2.UserSearchingNetworkAPI       = (*WhatsAppClient)(nil)
+	_ bridgev2.GhostDMCreatingNetworkAPI     = (*WhatsAppClient)(nil)
+	_ bridgev2.GroupCreatingNetworkAPI       = (*WhatsAppClient)(nil)
+	_ bridgev2.IdentifierValidatingNetwork   = (*WhatsAppConnector)(nil)
+)
+
+var (
+	ErrInputLooksLikeEmail = bridgev2.WrapRespErr(errors.New("WhatsApp only supports phone numbers as user identifiers. Number looks like email"), mautrix.MInvalidParam)
+)
+
+func looksEmaily(str string) bool {
+	for _, char := range str {
+		// Characters that are usually in emails, but shouldn't be in phone numbers
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char == '@' {
+			return true
+		}
+	}
+	return false
+}
+
+type isOnWhatsappCacheEntry struct {
+	jid types.JID
+	ts  time.Time
+}
+
+var isOnWhatsappCache = exsync.NewMap[string, isOnWhatsappCacheEntry]()
+
+func (wa *WhatsAppClient) validateIdentifer(ctx context.Context, number string) (types.JID, error) {
+	if strings.HasSuffix(number, "@"+types.BotServer) || strings.HasSuffix(number, "@"+types.HiddenUserServer) {
+		return types.ParseJID(number)
+	} else if strings.HasPrefix(number, waid.BotPrefix) || strings.HasPrefix(number, waid.LIDPrefix) {
+		return waid.ParseUserID(networkid.UserID(number)), nil
+	}
+	if strings.HasSuffix(number, "@"+types.DefaultUserServer) {
+		jid, _ := types.ParseJID(number)
+		number = "+" + jid.User
+	}
+	if looksEmaily(number) {
+		return types.EmptyJID, ErrInputLooksLikeEmail
+	} else if wa.Client == nil || !wa.Client.IsLoggedIn() {
+		return types.EmptyJID, bridgev2.ErrNotLoggedIn
+	} else if entry, ok := isOnWhatsappCache.Get(number); ok && time.Since(entry.ts) < 4*time.Hour {
+		return entry.jid, nil
+	} else if resp, err := wa.Client.IsOnWhatsApp(ctx, []string{number}); err != nil {
+		return types.EmptyJID, fmt.Errorf("failed to check if number is on WhatsApp: %w", err)
+	} else if len(resp) == 0 {
+		return types.EmptyJID, fmt.Errorf("the server did not respond to the query")
+	} else if !resp[0].IsIn {
+		return types.EmptyJID, bridgev2.WrapRespErr(fmt.Errorf("the server said +%s is not on WhatsApp", resp[0].JID.User), mautrix.MNotFound)
+	} else {
+		isOnWhatsappCache.Set(number, isOnWhatsappCacheEntry{resp[0].JID, time.Now()})
+		return resp[0].JID, nil
+	}
+}
+
+func isOnlyNumbers(user string) bool {
+	for _, char := range user {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func (wa *WhatsAppConnector) ValidateUserID(id networkid.UserID) bool {
+	jid := waid.ParseUserID(id)
+	switch jid.Server {
+	case types.DefaultUserServer:
+		return len(jid.User) <= 13 && (jid.User == "0" || len(jid.User) >= 7) && isOnlyNumbers(jid.User)
+	case types.HiddenUserServer, types.BotServer:
+		return len(jid.User) >= 12
+	default:
+		return false
+	}
+}
+
+func (wa *WhatsAppClient) startChatPNToLID(ctx context.Context, jid types.JID) (types.JID, error) {
+	if jid.Server == types.DefaultUserServer {
+		lid, err := wa.GetStore().LIDs.GetLIDForPN(ctx, jid)
+		if err != nil {
+			return jid, fmt.Errorf("failed to get lid for phone number: %w", err)
+		} else if lid.IsEmpty() {
+			resp, err := wa.Client.GetUserInfo(ctx, []types.JID{jid})
+			if err != nil {
+				return jid, fmt.Errorf("failed to get user info for phone number: %w", err)
+			} else if info, ok := resp[jid]; !ok {
+				return jid, fmt.Errorf("server didn't return user info for phone number")
+			} else if info.LID.IsEmpty() {
+				return jid, fmt.Errorf("server didn't return lid for phone number")
+			} else {
+				return info.LID, nil
+			}
+		}
+		return lid, nil
+	}
+	return jid, nil
+}
+
+func (wa *WhatsAppClient) makeCreateChatResponse(ctx context.Context, jid, origJID types.JID) *bridgev2.CreateChatResponse {
+	var redirID networkid.UserID
+	if origJID != jid {
+		redirID = waid.MakeUserID(jid)
+	}
+	return &bridgev2.CreateChatResponse{
+		PortalKey:      wa.makeWAPortalKey(jid),
+		PortalInfo:     wa.wrapDMInfo(ctx, jid),
+		DMRedirectedTo: redirID,
+	}
+}
+
+func (wa *WhatsAppClient) CreateChatWithGhost(ctx context.Context, ghost *bridgev2.Ghost) (*bridgev2.CreateChatResponse, error) {
+	origJID := waid.ParseUserID(ghost.ID)
+	jid, err := wa.startChatPNToLID(ctx, origJID)
+	if err != nil {
+		return nil, err
+	}
+	return wa.makeCreateChatResponse(ctx, jid, origJID), nil
+}
+
+func (wa *WhatsAppClient) ResolveIdentifier(ctx context.Context, identifier string, startChat bool) (*bridgev2.ResolveIdentifierResponse, error) {
+	origJID, err := wa.validateIdentifer(ctx, identifier)
+	if err != nil {
+		return nil, err
+	}
+	jid, err := wa.startChatPNToLID(ctx, origJID)
+	if err != nil {
+		return nil, err
+	}
+	ghost, err := wa.Main.Bridge.GetGhostByID(ctx, waid.MakeUserID(jid))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ghost: %w", err)
+	}
+	userInfo, err := wa.getUserInfo(ctx, jid, "", false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	return &bridgev2.ResolveIdentifierResponse{
+		Ghost:    ghost,
+		UserID:   waid.MakeUserID(jid),
+		UserInfo: userInfo,
+		Chat:     wa.makeCreateChatResponse(ctx, jid, origJID),
+	}, nil
+}
+
+func (wa *WhatsAppClient) GetContactList(ctx context.Context) ([]*bridgev2.ResolveIdentifierResponse, error) {
+	return wa.getContactList(ctx, "", true)
+}
+
+func (wa *WhatsAppClient) SearchUsers(ctx context.Context, query string) ([]*bridgev2.ResolveIdentifierResponse, error) {
+	return wa.getContactList(ctx, strings.ToLower(query), false)
+}
+
+func matchesQuery(str string, query string) bool {
+	if query == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(str), query)
+}
+
+func (wa *WhatsAppClient) getContactList(ctx context.Context, filter string, onlyContacts bool) ([]*bridgev2.ResolveIdentifierResponse, error) {
+	if !wa.IsLoggedIn() {
+		return nil, mautrix.MForbidden.WithMessage("You must be logged in to list contacts")
+	}
+	contacts, err := wa.GetStore().Contacts.GetAllContacts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]*bridgev2.ResolveIdentifierResponse, 0, len(contacts))
+	addedIDs := make(exmaps.Set[types.JID])
+	for jid, contactInfo := range contacts {
+		if onlyContacts && (contactInfo.FirstName == "" && contactInfo.FullName == "") {
+			continue
+		}
+		if !matchesQuery(contactInfo.PushName, filter) && !matchesQuery(contactInfo.FullName, filter) && !matchesQuery(jid.User, filter) {
+			continue
+		}
+		var lid types.JID
+		if jid.Server == types.HiddenUserServer {
+			lid = jid
+		} else if jid.Server == types.DefaultUserServer {
+			lid, err = wa.GetStore().LIDs.GetLIDForPN(ctx, jid)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get lid for phone number %s: %w", jid, err)
+			} else if !lid.IsEmpty() {
+				jid = lid
+			}
+		}
+		if !addedIDs.Add(jid) {
+			continue
+		}
+		var chatResp *bridgev2.CreateChatResponse
+		if !lid.IsEmpty() {
+			chatResp = &bridgev2.CreateChatResponse{PortalKey: wa.makeWAPortalKey(lid)}
+		}
+		ghost, _ := wa.Main.Bridge.GetGhostByID(ctx, waid.MakeUserID(jid))
+		resp = append(resp, &bridgev2.ResolveIdentifierResponse{
+			Ghost:    ghost,
+			UserID:   waid.MakeUserID(jid),
+			UserInfo: wa.contactToUserInfo(ctx, jid, contactInfo, "", false),
+			Chat:     chatResp,
+		})
+	}
+	return resp, nil
+}
+
+func (wa *WhatsAppClient) CreateGroup(ctx context.Context, params *bridgev2.GroupCreateParams) (*bridgev2.CreateChatResponse, error) {
+	req := whatsmeow.ReqCreateGroup{
+		Name:         ptr.Val(params.Name).Name,
+		Participants: make([]types.JID, len(params.Participants)),
+	}
+	for i, participant := range params.Participants {
+		jid := waid.ParseUserID(participant)
+		jid, err := wa.startChatPNToLID(ctx, jid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to normalize participant %s: %w", participant, err)
+		}
+		req.Participants[i] = jid
+	}
+	if params.Parent != nil {
+		var err error
+		req.GroupLinkedParent.LinkedParentJID, err = waid.ParsePortalID(params.Parent.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse parent ID: %w", err)
+		}
+	}
+	if params.Disappear != nil {
+		req.GroupEphemeral = types.GroupEphemeral{
+			IsEphemeral:       true,
+			DisappearingTimer: uint32(params.Disappear.Timer.Seconds()),
+		}
+	}
+	var avatarBytes []byte
+	var avatarMXC id.ContentURIString
+	if params.Avatar != nil && params.Avatar.URL != "" {
+		avatarMXC = params.Avatar.URL
+		var err error
+		avatarBytes, err = wa.Main.Bridge.Bot.DownloadMedia(ctx, params.Avatar.URL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download avatar: %w", err)
+		}
+		avatarBytes, err = convertRoomAvatar(avatarBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+	resp, err := wa.Client.CreateGroup(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create group: %w", err)
+	}
+	failedParticipants := make(map[networkid.UserID]*bridgev2.CreateChatFailedParticipant)
+	filteredParticipants := resp.Participants[:0]
+	for _, pcp := range resp.Participants {
+		if pcp.Error != 0 {
+			var inviteContent *event.Content
+			if pcp.AddRequest != nil {
+				inviteContent = &event.Content{
+					Raw: map[string]any{
+						msgconv.GroupInviteMetaField: &waid.GroupInviteMeta{
+							JID:           resp.JID,
+							Code:          pcp.AddRequest.Code,
+							Expiration:    pcp.AddRequest.Expiration.Unix(),
+							Inviter:       wa.JID.ToNonAD(),
+							GroupName:     resp.Name,
+							IsParentGroup: resp.IsParent,
+						},
+					},
+					Parsed: &event.MessageEventContent{
+						Body:    "Invitation to join my WhatsApp group",
+						MsgType: event.MsgText,
+					},
+				}
+			}
+			failedParticipants[waid.MakeUserID(pcp.JID)] = &bridgev2.CreateChatFailedParticipant{
+				Reason:          fmt.Sprintf("error %d", pcp.Error),
+				InviteEventType: event.EventMessage.Type,
+				InviteContent:   inviteContent,
+			}
+		} else {
+			filteredParticipants = append(filteredParticipants, pcp)
+		}
+	}
+	resp.Participants = filteredParticipants
+	portal, err := wa.Main.Bridge.GetPortalByKey(ctx, wa.makeWAPortalKey(resp.JID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal: %w", err)
+	}
+	groupInfo := wa.wrapGroupInfo(ctx, resp)
+	if params.RoomID != "" {
+		err = portal.UpdateMatrixRoomID(ctx, params.RoomID, bridgev2.UpdateMatrixRoomIDParams{
+			SyncDBMetadata: func() {
+				portal.Name = req.Name
+				portal.NameSet = true
+				portal.ParentKey = ptr.Val(params.Parent)
+				if avatarBytes != nil {
+					portal.AvatarSet = true
+					portal.AvatarHash = sha256.Sum256(avatarBytes)
+					portal.AvatarMXC = avatarMXC
+				}
+				if req.DisappearingTimer > 0 {
+					portal.Disappear = database.DisappearingSetting{
+						Type:  event.DisappearingTypeAfterSend,
+						Timer: time.Duration(req.DisappearingTimer) * time.Second,
+					}
+				}
+			},
+			OverwriteOldPortal: true,
+			TombstoneOldRoom:   true,
+			DeleteOldRoom:      true,
+			ChatInfo:           groupInfo,
+			ChatInfoSource:     wa.UserLogin,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update room ID after creating group: %w", err)
+		}
+	}
+	changed := false
+	if avatarBytes != nil {
+		avatarID, err := wa.Client.SetGroupPhoto(ctx, resp.JID, avatarBytes)
+		if err != nil {
+			zerolog.Ctx(ctx).Warn().Err(err).Msg("Failed to set group avatar after creating group")
+		} else {
+			portal.AvatarID = networkid.AvatarID(avatarID)
+			portal.AvatarHash = sha256.Sum256(avatarBytes)
+			portal.AvatarMXC = avatarMXC
+			portal.AvatarSet = true
+			groupInfo.Avatar = &bridgev2.Avatar{
+				ID:   portal.AvatarID,
+				MXC:  portal.AvatarMXC,
+				Hash: portal.AvatarHash,
+			}
+			changed = true
+		}
+	}
+	if params.Topic != nil {
+		newTopicID := wa.Client.GenerateMessageID()
+		err = wa.Client.SetGroupTopic(ctx, resp.JID, "", newTopicID, params.Topic.Topic)
+		if err != nil {
+			zerolog.Ctx(ctx).Warn().Err(err).Msg("Failed to set group topic after creating group")
+		} else {
+			portal.Topic = params.Topic.Topic
+			portal.TopicSet = params.RoomID != ""
+			portal.Metadata.(*waid.PortalMetadata).TopicID = newTopicID
+			changed = true
+			groupInfo.Topic = &params.Topic.Topic
+		}
+	}
+	if changed {
+		err = portal.Save(ctx)
+		if err != nil {
+			zerolog.Ctx(ctx).Err(err).Msg("Failed to save portal after post-creation updates")
+		}
+	}
+	return &bridgev2.CreateChatResponse{
+		PortalKey:  wa.makeWAPortalKey(resp.JID),
+		Portal:     portal,
+		PortalInfo: groupInfo,
+
+		FailedParticipants: failedParticipants,
+	}, nil
+}
