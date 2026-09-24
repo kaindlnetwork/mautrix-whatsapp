@@ -1,47 +1,45 @@
-FROM dock.mau.dev/mautrix/whatsapp
+# Kaindl Network build of mautrix-whatsapp.
+# Built from the source in this repository (upstream mautrix/whatsapp + Kaindl call extensions)
+# instead of re-tagging the upstream image, so that our patches are actually part of the binary.
+FROM golang:1-alpine3.24 AS builder
 
-LABEL org.opencontainers.image.description This is the mautrix-whatapp Container Image provided by Kaindl Network with added Healthcheck and higher security
-LABEL org.opencontainers.image.authors Fabian Kaindl container@kaindlnetwork.de
-LABEL org.opencontainers.image.source	https://github.com/kgncloud/mautrix-whatsapp/
-LABEL org.opencontainers.image.documentation https://github.com/kgncloud/mautrix-whatsapp/
-LABEL org.opencontainers.image.vendor Kaindl Network
-#LABEL org.opencontainers.image.licenses	
-# Add Healthcheck into the Image
-# Maximum Retries are 5 times according to  CIS Docker Benchmark 1.4.0 aka Best Practices
+RUN apk add --no-cache git ca-certificates build-base su-exec olm-dev
+
+COPY . /build
+WORKDIR /build
+RUN ./build.sh
+
+FROM alpine:3.24
+
+LABEL org.opencontainers.image.description="mautrix-whatsapp container image provided by Kaindl Network with healthcheck, hardening and WhatsApp call bridging"
+LABEL org.opencontainers.image.authors="Fabian Kaindl <container@kaindlnetwork.de>"
+LABEL org.opencontainers.image.source="https://github.com/kaindlnetwork/mautrix-whatsapp"
+LABEL org.opencontainers.image.documentation="https://github.com/kaindlnetwork/mautrix-whatsapp"
+LABEL org.opencontainers.image.vendor="Kaindl Network"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
+
+ENV UID=1337 \
+    GID=1337 \
+    BRIDGE_PORT=29318
+
+# Get latest security updates and install runtime dependencies.
+# bash and yq are needed by docker-run.sh, curl by the healthcheck.
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ffmpeg su-exec ca-certificates olm bash jq curl yq-go lottieconverter tzdata && \
+    # Remove package management so nobody can install software inside the running container.
+    apk del --no-cache apk-tools alpine-keys && \
+    rm -rf /var/cache/apk /lib/apk /etc/apk /home /srv /media && \
+    rm -f /sbin/reboot /sbin/poweroff /sbin/arp /sbin/fdisk /sbin/ifconfig
+
+COPY --from=builder /build/mautrix-whatsapp /usr/bin/mautrix-whatsapp
+COPY --from=builder /build/docker-run.sh /docker-run.sh
+VOLUME /data
+
+# Maximum retries are 5 according to CIS Docker Benchmark 1.4.0.
+# /_matrix/mau/live is served by the appservice HTTP server of every mautrix bridge.
 HEALTHCHECK --interval=30s --timeout=3s --retries=5 --start-period=10s \
-  CMD python3 /healthcheck.py
+  CMD curl -fsS "http://localhost:${BRIDGE_PORT}/_matrix/mau/live" || exit 1
 
-# We modified the Image to make it compliant with HTTP Standard Port
-EXPOSE 80
+EXPOSE 29318
 
-# Copy our config into the Image
-COPY /root /
-
-
-# Get latest Security Updates
-# This is usually not recommended, because it introduces errors to reproduce an image from the source parts but on the other hand does prevent that a part of the supply chain does not get updated fast enough
-# --no-cache does produce an error when you try to later delete packages
-RUN apk -U upgrade && \
-
-# Remove not needed packages to make it distroless
-# iputils = ping command and co
-# apk-tools alpine-tools alpine-keys libc-utils -> remove apk command
-# Nobudy should be able to install software inside an image!!!
-# bash = We dont need a shell inside a production container
-# Curl is needed for healthcheck and is a dependency from the application!
-# Bash is a Dependency of the Application Developer but should not be in the production enviroment -> Could be blacklisted from the removal list
-# ufw will be used as an internal firewall to ensure no unessesary ports can be used by default
-
-apk add python3 ufw=0.36.1-r2 tzdata=2022f-r1 && \
-
-python3 -m ensurepip --upgrade && \
-
-pip3 install requests && \
-
-apk del iputils apk-tools alpine-keys libc-utils wget bash && \
-# Remove apk-tools entirely and every related files
-rm -rf /var/cache/apk /lib/apk /etc/apk && \
-# Remove any folders that are not needed to further shrink down image size and make the image simplified 
-rm -rf /home /srv /media /root && \
-# Remove commands that should not exist in this image -> This commands depends if the software what build nativly for Containers or if it is just ported
-rm /sbin/reboot /sbin/poweroff /sbin/arp /sbin/fdisk /sbin/ifconfig
+CMD ["/docker-run.sh"]

@@ -1,0 +1,134 @@
+# Device name that's shown in the "WhatsApp Web" section in the mobile app.
+os_name: Mautrix-WhatsApp bridge
+# Browser name that determines the logo shown in the mobile app.
+# Must be "unknown" for a generic icon or a valid browser name if you want a specific icon.
+# List of valid browser names: https://github.com/tulir/whatsmeow/blob/efc632c008604016ddde63bfcfca8de4e5304da9/binary/proto/def.proto#L43-L64
+browser_name: unknown
+
+# Proxy to use for all WhatsApp connections.
+proxy: null
+# Alternative to proxy: an HTTP endpoint that returns the proxy URL to use for WhatsApp connections.
+get_proxy_url: null
+# Whether the proxy options should only apply to the login websocket and not to authenticated connections.
+proxy_only_login: false
+
+# Displayname template for WhatsApp users.
+# {{.PushName}}      - nickname set by the WhatsApp user
+# {{.BusinessName}}  - validated WhatsApp business name
+# {{.Phone}}         - phone number (international format)
+# {{.RedactedPhone}} - phone number with middle digits replaced by "∙"
+# {{.FullName}}      - Name you set in the contacts list
+displayname_template: '{{or .BusinessName .PushName .Phone .RedactedPhone "Unknown user"}} (WA)'
+
+# Should incoming calls send a message to the Matrix room?
+# The notice is edited when the call is answered on another device, missed, declined or ended,
+# and ringing calls can be declined from Matrix with the `decline-call` command.
+call_start_notices: true
+# Should another user's cryptographic identity changing send a message to Matrix?
+identity_change_notices: false
+# Should the bridge mark you as online on WhatsApp when you send typing notifications?
+# Full presence bridging is not supported.
+send_presence_on_typing: false
+# Should WhatsApp status messages be bridged into a Matrix room?
+enable_status_broadcast: true
+# Should sending WhatsApp status messages be allowed?
+# This can cause issues if the user has lots of contacts, so it's disabled by default.
+disable_status_broadcast_send: true
+# Should the status broadcast room be muted and moved into low priority by default?
+# This is only applied when creating the room, the user can unmute it later.
+mute_status_broadcast: true
+# Tag to apply to pinned chats on WhatsApp.
+pinned_tag: m.favourite
+# Tag to apply to archived chats on WhatsApp.
+# Set to m.lowpriority to move them to low priority.
+archive_tag:
+# Tag to apply to the status broadcast room.
+status_broadcast_tag: m.lowpriority
+# Should the bridge use thumbnails from WhatsApp?
+# They're disabled by default due to very low resolution.
+whatsapp_thumbnail: false
+# Should the bridge detect URLs in outgoing messages, ask the homeserver to generate a preview,
+# and send it to WhatsApp? URL previews can always be sent using the `com.beeper.linkpreviews`
+# key in the event content even if this is disabled.
+url_previews: false
+# Should polls be sent using unstable MSC3381 event types?
+extev_polls: false
+# Should view-once messages be disabled entirely?
+disable_view_once: false
+# Should the bridge always send "active" delivery receipts (two gray ticks on WhatsApp)
+# even if the user isn't marked as online (e.g. when presence bridging isn't enabled)?
+#
+# By default, the bridge acts like WhatsApp web, which only sends active delivery
+# receipts when it's in the foreground.
+force_active_delivery_receipts: false
+# When direct media is enabled and a piece of media isn't available on the WhatsApp servers,
+# should it be automatically requested from the phone?
+direct_media_auto_request: true
+# Should the bridge automatically reconnect if it fails to connect on startup?
+initial_auto_reconnect: true
+# WhatsApp messages are sometimes undecryptable. Should the bridge store messages it sends in the
+# bridge database in order to accept retry receipts from other WhatsApp users for messages sent via
+# the bridge? By default, the bridge only stores messages in memory, and therefore can't accept
+# retry receipts if the bridge is restarted after the message is sent.
+use_whatsapp_retry_store: false
+# Maximum size of groups to sync members eagerly in. Defaults to unlimited.
+# If set, groups with more than this number of members will not have non-admin participants synced until they talk.
+max_member_sync: -1
+# Lazily load avatars using direct media?
+# Global direct media must be enabled for this.
+lazy_avatars: false
+
+# Settings for converting animated stickers.
+animated_sticker:
+    # Format to which animated stickers should be converted.
+    # disable - No conversion, just unzip and send raw lottie JSON
+    # png - converts to non-animated png (fastest)
+    # gif - converts to animated gif
+    # webm - converts to webm video, requires ffmpeg executable with vp9 codec and webm container support
+    # webp - converts to animated webp, requires ffmpeg executable with webp codec/container support
+    target: webp
+    # Arguments for converter. All converters take width and height.
+    args:
+        width: 320
+        height: 320
+        fps: 25 # only for webm, webp and gif (2, 5, 10, 20 or 25 recommended)
+
+# Settings for handling history sync payloads.
+history_sync:
+    # How many conversations should the bridge create after login?
+    # If -1, all conversations received from history sync will be bridged.
+    # Other conversations will be backfilled on demand when receiving a message.
+    max_initial_conversations: -1
+    # Should the bridge request a full sync from the phone when logging in?
+    # This bumps the size of history syncs from 3 months to 1 year.
+    request_full_sync: false
+    # Time to wait for history sync payloads before starting backfill. Each new payload resets the timer.
+    # If this is too low, the backfill may happen with incomplete history
+    # and backfill less messages than what is configured in the backfill section.
+    dispatch_wait: 1m
+    # Configuration parameters that are sent to the phone along with the request full sync flag.
+    # By default, (when the values are null or 0), the config isn't sent at all.
+    full_sync_config:
+        # Number of days of history to request.
+        # The limit seems to be around 3 years, but using higher values doesn't break.
+        days_limit: null
+        # This is presumably the maximum size of the transferred history sync blob, which may affect what the phone includes in the blob.
+        size_mb_limit: null
+        # This is presumably the local storage quota, which may affect what the phone includes in the history sync blob.
+        storage_quota_mb: null
+    # Settings for media requests. If the media expired, then it will not be on the WA servers.
+    # Media can always be requested by reacting with the ♻️ (recycle) emoji.
+    # These settings determine if the media requests should be done automatically during or after backfill.
+    media_requests:
+        # Should the expired media be automatically requested from the server as part of the backfill process?
+        auto_request_media: true
+        # Whether to request the media immediately after the media message is backfilled ("immediate")
+        # or at a specific time of the day ("local_time").
+        request_method: immediate
+        # If request_method is "local_time", what time should the requests be sent (in minutes after midnight)?
+        request_local_time: 120
+        # Maximum number of media request responses to handle in parallel per user.
+        max_async_handle: 2
+    # Use on-demand history sync requests for fetching older messages?
+    # This only applies when using the backfill queue, never for forward backfills.
+    backwards_on_demand: false
